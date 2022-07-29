@@ -1,0 +1,13 @@
+{
+    "token": "",
+    "purgeChannels": true,
+    "purgeGuilds": true,
+    "channelsToExclude": [],
+    "guildsToExclude": [],
+    "onlyIncludeTheseChannels": [],
+    "onlyIncludeTheseGuilds": [],
+    "includeNsfw": true,
+    "deletePins": true,
+    "deleteMessagesWithAttachments": true,
+    "excludeMessagesBeforeDate": ""
+}
