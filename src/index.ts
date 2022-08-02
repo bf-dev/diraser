@@ -61,6 +61,10 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
     if (targets.length === 0) {
         console.log(colors.yellow('No targets found.'));
         process.exit(0);
+    } else if (targets.length === 1) {
+        console.log('Found ' +  colors.bold('1') + ' target. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+    } else {
+        console.log('Found ' + colors.bold(String(targets.length)) + ' targets. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
     }
 
     for (const target of targets) {
