@@ -27,6 +27,7 @@ Purge your Discord messages from the cli manually or automated
 - `includeNsfw` if true, messages from NSFW channels will be purged
 - `deletePins` if true, pinned messages will be purged
 - `deleteMessagesWithAttachments` if true, messages with attachments will be purged
+- `excludeMessagesBeforeDate` don't delete messages before a given date
 
 *`onlyIncludeTheseChannels` and `onlyIncludeTheseGuilds` are not influenced by `purgeChannels`, `purgeGuilds`, `channelsToExclude` and `guildsToExclude`*
 
@@ -42,12 +43,13 @@ Purge your Discord messages from the cli manually or automated
     "onlyIncludeTheseGuilds": [],
     "includeNsfw": true,
     "deletePins": false,
-    "deleteMessagesWithAttachments": true
+    "deleteMessagesWithAttachments": true,
+    "excludeMessagesBeforeDate": "2020-05-24"
 }
 ```
 
 ### Obtaining Your Token
-1. Open the developer tools in your Discord client or browser
+1. Open the developer tools in your Discord client or browser logged into Discord
 2. Copy and paste the following code into the JavaScript console:
 ```JavaScript
 alert((webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken());
