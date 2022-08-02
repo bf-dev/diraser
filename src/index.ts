@@ -13,6 +13,7 @@ import cliProgress from 'cli-progress';
 interface Target {
     type: 'channel' | 'guild';
     id: string;
+    name: string;
 }
 
 const API_ENDPOINT: string = 'https://discord.com/api/v10/';
@@ -68,6 +69,8 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
     }
 
     for (const target of targets) {
+        console.log('Purging messages for: ' + target.name);
+
         const progressBar = new cliProgress.SingleBar({
             format: colors.green('{bar}') + ' {percentage}% | Deleted: {value} | Indexed: {total}',
             barCompleteChar: '#',
@@ -184,13 +187,62 @@ async function getTargets(): Promise<Array<Target>> {
     let TARGET_ENDPOINTS: Array<string> = [];
 
     // only include channels and guilds from the config
-    if (config.onlyIncludeTheseChannels.length > 0 || config.onlyIncludeTheseGuilds.length > 0) {
-        for (const channel of config.onlyIncludeTheseChannels) {
-            targets.push({type: 'channel', id: channel});
-        }
+    if (config.onlyIncludeTheseChannels.length > 0) {
+        const response: Response = await fetch(
+            API_ENDPOINT + 'users/@me/channels', {
+                headers: headers
+            }
+        );
 
-        for (const guild of config.onlyIncludeTheseGuilds) {
-            targets.push({type: 'guild', id: guild});
+        if (response.status !== 200) {
+            console.log(colors.red('Failed to fetch the channels.'));
+            process.exit(1);
+        } else {
+            const channels = await response.json();
+            for (const includedChannel of config.onlyIncludeTheseChannels) {
+                let name: string = '';
+
+                for (const channel of channels) {
+                    if (channel.id === includedChannel) {
+                        for (const recipient of channel.recipients) {
+                            name += recipient.username + '#' + recipient.discriminator + ', ';
+                        }
+
+                        if (name.endsWith(', ')) {
+                            name = name.substring(0, name.length - 2);
+                        }
+                    }
+                }
+
+                targets.push({type: 'channel', id: includedChannel, name: name});
+            }
+        }
+    }
+
+    if (config.onlyIncludeTheseGuilds.length > 0) {
+        const response: Response = await fetch(
+            API_ENDPOINT + 'users/@me/guilds', {
+                headers: headers
+            }
+        );
+
+        if (response.status !== 200) {
+            console.log(colors.red('Failed to fetch the guilds.'));
+            process.exit(1);
+        } else {
+            const guilds = await response.json();
+
+            for (const includedGuild of config.onlyIncludeTheseGuilds) {
+                let name: string = '';
+
+                for (const guild of guilds) {
+                    if (guild.id === includedGuild) {
+                        name = guild.name;
+                    }
+                }
+
+                targets.push({type: 'guild', id: includedGuild, name: name});
+            }
         }
 
         return targets;
@@ -226,9 +278,18 @@ async function getTargets(): Promise<Array<Target>> {
                 }
 
                 if (targetEndpoint.endsWith('channels')) {
-                    targets.push({type: 'channel', id: target.id});
+                    let name: string = '';
+                    for (const recipient of target.recipients) {
+                        name += recipient.username + '#' + recipient.discriminator + ', ';
+                    }
+
+                    if (name.endsWith(', ')) {
+                        name = name.substring(0, name.length - 2);
+                    }
+
+                    targets.push({type: 'channel', id: target.id, name: name});
                 } else {
-                    targets.push({type: 'guild', id: target.id});
+                    targets.push({type: 'guild', id: target.id, name: target.name});
                 }
             }
         }
