@@ -244,7 +244,10 @@ async function getTargets(): Promise<Array<Target>> {
                 targets.push({type: 'guild', id: includedGuild, name: name});
             }
         }
+    }
 
+    // return the targets when only specific channels are configured in the config
+    if (targets.length > 0) {
         return targets;
     }
 
