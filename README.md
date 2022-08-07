@@ -1,5 +1,5 @@
 # Ivy
-Purge your Discord messages from the cli manually or automated
+Bulk delete your Discord messages from the cli manually or automated
 
 ## Preview
 <img src="Preview.png">

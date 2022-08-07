@@ -11,8 +11,8 @@ import colors from 'colors';
 import cliProgress from 'cli-progress';
 
 interface Target {
-    type: 'channel' | 'guild';
     id: string;
+    type: 'channel' | 'guild';
     name: string;
 }
 
@@ -22,13 +22,11 @@ const headers: HeadersInit = {
 };
 
 let user: any;
-let targets: Array<Target> = [];
+let offset: number = 0;
+let deletedMessages: number = 0;
 let completedTargets: number = 0;
-let totalDeletedMessages: number = 0; // only used for the result
-let totalSkippedMessages: number = 0; // only used for the result
-let totalFailedMessages: number = 0; // only used for the result
-let skippedMessages: number = 0; // used at runtime
-let failedMessages: number = 0; // used at runtime
+let skippedMessages: number = 0;
+let failedMessages: number = 0;
 
 async function main(): Promise<void> {
     validateConfig();
@@ -53,38 +51,140 @@ async function main(): Promise<void> {
     console.log('-------------------------------------------------------\n');
     console.log(colors.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
     console.log(colors.yellow('Warning:') + ' Unlikely, but using this can get your Discord account blocked by the API.\n');
-    console.log('Purging messages for ' + user.username + '#' + user.discriminator + '...\n');
+    console.log('Logged in as ' + user.username + '#' + user.discriminator + '...\n');
 
-    await deleteMessages(await getTargets());
+    await deleteMessages(await fetchTargets());
+
+    console.log('\nAll Channels/Guilds have been purged.');
+    console.log('Thanks for using ' + colors.green('Ivy') + '!\n');
 }
 
 async function deleteMessages(targets: Array<Target>): Promise<void> {
-    if (targets.length === 0) {
-        console.log(colors.yellow('No targets found.'));
-        process.exit(0);
-    } else if (targets.length === 1) {
-        console.log('Found ' +  colors.bold('1') + ' target. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+    const specifiedTargetsCount: number = config.onlyIncludeTheseChannels.length + config.onlyIncludeTheseGuilds.length;
+    if (specifiedTargetsCount > 0) {
+        if (specifiedTargetsCount === 1) {
+            console.log('Specified ' +  colors.bold('1') + ' target.\n');
+        } else {
+            console.log('Specified ' +  colors.bold(String(specifiedTargetsCount)) + ' targets.\n');
+        }
     } else {
-        console.log('Found ' + colors.bold(String(targets.length)) + ' targets. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+        if (targets.length === 0) {
+            console.log(colors.yellow('No targets were found.\n'));
+            process.exit(0);
+        } else if (targets.length === 1) {
+            console.log('Found ' +  colors.bold('1') + ' target. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+        } else {
+            console.log('Found ' + colors.bold(String(targets.length)) + ' targets. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+        }
     }
 
     for (const target of targets) {
-        console.log('Purging messages for: ' + target.name);
+        console.log('-------------------------------------------------------------------');
+        console.log('Fetching messages in "' + colors.blue(target.name) + '"... (this may take some time)');
+        let messages: Array<any> = await fetchMessages(target);
+
+        if (messages.length === 0) {
+            console.log(colors.yellow('No messages were found, moving on.'));
+            console.log('-------------------------------------------------------------------');
+
+            completedTargets += 1;
+            logRemainingTargets(targets.length, target.type);
+
+            continue;
+        } else if (messages.length === 1) {
+            console.log('Found 1 message.\n');
+        } else {
+            console.log('Found ' + colors.bold(String(messages.length)) + ' messages.\n');
+        }
+
+        console.log('Purging messages in "' + colors.blue(target.name) + '"...');
 
         const progressBar = new cliProgress.SingleBar({
-            format: colors.green('{bar}') + ' {percentage}% | Deleted: {value} | Indexed: {total}',
+            format: colors.green('{bar}') + ' {percentage}% | ETA: {eta}s | Deleted: {value}/{total}',
             barCompleteChar: '#',
             hideCursor: true
         });
+        progressBar.start(messages.length, 0);
 
-        progressBar.start(0, 0);
+        for (const message of messages) {
+            let DELETE_ENDPOINT: RequestInfo = API_ENDPOINT;
+            if (target.type === 'channel') {
+                DELETE_ENDPOINT += 'channels/' + target.id + '/messages/' + message.id;
+            } else {
+                DELETE_ENDPOINT += 'channels/' + message.channel_id + '/messages/' + message.id;
+            }
 
-        let messages: any = await getMessages(target);
-        progressBar.setTotal(messages.length);
+            const response: Response = await fetch(
+                DELETE_ENDPOINT, {
+                    method: 'DELETE',
+                    headers: headers
+                }
+            );
 
-        while (messages.length > (skippedMessages + failedMessages)) {
+            if (response.status === 204) {
+                deletedMessages += 1;
+                progressBar.increment();
+            } else if (response.status === 429) {
+                messages.push(message); // add the current message again to try deleting it again later
+
+                const data: any = await response.json();
+                const delay: number = data.retry_after * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                failedMessages += 1;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
+        }
+
+        console.log('\nSuccessful: ' + colors.bold(String(deletedMessages)) + ' | Failed: ' + colors.bold(String(failedMessages)));
+        console.log('-------------------------------------------------------------------');
+
+        completedTargets += 1;
+        logRemainingTargets(targets.length, target.type);
+
+        offset = 0;
+        skippedMessages = 0;
+        failedMessages = 0;
+    }
+}
+
+async function fetchMessages(target: Target): Promise<Array<any>> {
+    let validMessages: Array<any> = [];
+
+    while (true) {
+        let MESSAGES_ENDPOINT: RequestInfo = API_ENDPOINT;
+
+        if (target.type === 'channel') {
+            MESSAGES_ENDPOINT += 'channels/' + target.id + '/messages/search?author_id=' + user.id
+        } else {
+            MESSAGES_ENDPOINT += 'guilds/' + target.id + '/messages/search?author_id=' + user.id
+        }
+
+        MESSAGES_ENDPOINT += '&include_nsfw=' + config.includeNsfw;
+        MESSAGES_ENDPOINT += '&offset=' + offset;
+
+        const response: Response = await fetch(
+            MESSAGES_ENDPOINT, {
+                headers: headers
+            }
+        );
+
+        if (response.status === 200) {
+            const data: any = await response.json();
+            const messages: Array<any> = data.messages;
+
+            if (messages.length === 0) {
+                break;
+            }
+
             for (let message of messages) {
                 message = message[0];
+
+                // messages with the type 1-5 or > 21 are considered system messages and forbidden to be deleted
+                if ((message.type >= 1 && message.type <= 5) || message.type > 21) {
+                    continue;
+                }
 
                 // skip pinned messages, messages with attachments and messages before a specific date
                 if (!config.deletePins && message.pinned ||
@@ -92,101 +192,38 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
                     config.excludeMessagesBeforeDate && message.timestamp < config.excludeMessagesBeforeDate
                 ) {
                     skippedMessages += 1;
-                    totalSkippedMessages += 1;
                     continue;
                 }
 
-                let DELETE_ENDPOINT: RequestInfo = API_ENDPOINT;
-                if (target.type === 'channel') {
-                    DELETE_ENDPOINT += 'channels/' + target.id + '/messages/' + message.id;
-                } else if (target.type === 'guild') {
-                    DELETE_ENDPOINT += 'channels/' + message.channel_id + '/messages/' + message.id;
-                }
-
-                const response: Response = await fetch(
-                    DELETE_ENDPOINT, {
-                        method: 'DELETE',
-                        headers: headers
-                    }
-                );
-
-                if (response.status === 204) {
-                    totalDeletedMessages += 1;
-                    progressBar.increment();
-                } else if (response.status === 429) {
-                    const data: any = await response.json();
-                    const delay: number = data.retry_after * 1000;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    failedMessages += 1;
-                    totalFailedMessages += 1;
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 500));
+                validMessages.push(message);
             }
 
-            messages = await getMessages(target);
-            progressBar.start(messages.length, 0);
+            offset += messages.length;
+        } else if (response.status === 202 || response.status === 429) {
+            // 202 === channel/guild hasn't been indexed yet
+            // 429 === rate limit exceeded
+            const data: any = await response.json();
+            const delay: number = data.retry_after * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        completedTargets += 1;
-        if ((targets.length - completedTargets) === 1) {
-            if (target.type === 'channel') {
-                console.log('\n1 Channel left to purge.\n');
-            } else {
-                console.log('\n1 Guild left to purge.\n');
-            }
-        } else if ((targets.length - completedTargets) > 1) {
-            console.log('\n' + (targets.length - completedTargets) + ' Channels/Guilds left to purge.\n');
-        } else {
-            console.log('\n\nAll Channels/Guilds have been purged. (' + totalDeletedMessages + ' deleted, ' + totalSkippedMessages + ' skipped, ' + totalFailedMessages + ' failed)');
-            console.log('Thanks for using ' + colors.green('Ivy') + '!\n');
-        }
-
-        skippedMessages = 0;
-        failedMessages = 0;
+        await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
     }
+
+    return validMessages;
 }
 
-async function getMessages(target: Target): Promise<Array<any>> {
-    let MESSAGES_ENDPOINT: RequestInfo = API_ENDPOINT;
-
-    if (target.type === 'channel') {
-        MESSAGES_ENDPOINT += 'channels/' + target.id + '/messages/search?author_id=' + user.id
+async function fetchTargets(): Promise<Array<Target>> {
+    if (config.onlyIncludeTheseChannels.length > 0 || config.onlyIncludeTheseGuilds.length > 0) {
+        return await fetchTargetsForConfiguration();
     } else {
-        MESSAGES_ENDPOINT += 'guilds/' + target.id + '/messages/search?author_id=' + user.id
+        return await fetchAllTargets();
     }
-
-    MESSAGES_ENDPOINT += '&include_nsfw=' + config.includeNsfw;
-
-    const response: Response = await fetch(
-        MESSAGES_ENDPOINT, {
-            headers: headers
-        }
-    );
-
-    if (response.status === 200) {
-        const data: any = await response.json();
-        return data.messages;
-    } else if (response.status === 202 || response.status === 429) {
-        // 202 === channel/guild hasn't been indexed yet
-        // 429 === rate limit exceeded
-        if (response.status === 202) {
-            targets.push(target); // add the current target to the upcoming targets again to try again later
-        }
-
-        const data: any = await response.json();
-        const delay: number = data.retry_after * 2000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
-    return [];
 }
 
-async function getTargets(): Promise<Array<Target>> {
-    let TARGET_ENDPOINTS: Array<string> = [];
+async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
+    let targets: Array<Target> = [];
 
-    // only include channels and guilds from the config
     if (config.onlyIncludeTheseChannels.length > 0) {
         const response: Response = await fetch(
             API_ENDPOINT + 'users/@me/channels', {
@@ -198,7 +235,7 @@ async function getTargets(): Promise<Array<Target>> {
             console.log(colors.red('Failed to fetch the channels.'));
             process.exit(1);
         } else {
-            const channels = await response.json();
+            const channels: Array<any> = await response.json();
             for (const includedChannel of config.onlyIncludeTheseChannels) {
                 let name: string = '';
 
@@ -230,7 +267,7 @@ async function getTargets(): Promise<Array<Target>> {
             console.log(colors.red('Failed to fetch the guilds.'));
             process.exit(1);
         } else {
-            const guilds = await response.json();
+            const guilds: Array<any> = await response.json();
 
             for (const includedGuild of config.onlyIncludeTheseGuilds) {
                 let name: string = '';
@@ -246,11 +283,13 @@ async function getTargets(): Promise<Array<Target>> {
         }
     }
 
-    // return the targets when only specific channels are configured in the config
-    if (targets.length > 0) {
-        return targets;
-    }
+    return targets;
+}
 
+async function fetchAllTargets(): Promise<Array<Target>> {
+    let targets: Array<Target> = [];
+
+    let TARGET_ENDPOINTS: Array<string> = [];
     if (config.purgeChannels) {
         TARGET_ENDPOINTS.push(API_ENDPOINT + 'users/@me/channels');
     }
@@ -299,6 +338,18 @@ async function getTargets(): Promise<Array<Target>> {
     }
 
     return targets;
+}
+
+function logRemainingTargets(targetsAmount: number, targetType: string): void {
+    if ((targetsAmount - completedTargets) === 1) {
+        if (targetType === 'channel') {
+            console.log('\n1 Channel left to purge.\n');
+        } else {
+            console.log('\n1 Guild left to purge.\n');
+        }
+    } else if ((targetsAmount - completedTargets) > 1) {
+        console.log('\n' + (targetsAmount - completedTargets) + ' Channels/Guilds left to purge.\n');
+    }
 }
 
 function validateConfig(): void {
