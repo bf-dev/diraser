@@ -7,7 +7,7 @@
 
 import config from '../config.json';
 import { ConfigValidator } from './ConfigValidator';
-import colors from 'colors';
+import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 
 interface Target {
@@ -40,51 +40,51 @@ async function main(): Promise<void> {
     if (response.status === 200) {
         user = await response.json();
     } else {
-        console.error(colors.red('The token in your config seems to be invalid.'));
+        console.error(chalk.red('The token in your config seems to be invalid.'));
         process.exit(1);
     }
 
     console.log('\n-------------------------------------------------------');
-    console.log(colors.green('Ivy') + ' by Traurige');
-    console.log('Source code: ' + colors.underline('https://github.com/Traurige/Ivy'));
-    console.log('Donations are welcome: ' + colors.underline('https://ko-fi.com/traurige'));
+    console.log(chalk.green('Ivy') + ' by Traurige');
+    console.log('Source code: ' + chalk.underline('https://github.com/Traurige/Ivy'));
+    console.log('Donations are welcome: ' + chalk.underline('https://ko-fi.com/traurige'));
     console.log('-------------------------------------------------------\n');
-    console.log(colors.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
-    console.log(colors.yellow('Warning:') + ' Unlikely, but using this can get your Discord account blocked by the API.\n');
+    console.log(chalk.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
+    console.log(chalk.yellow('Warning:') + ' Unlikely, but using this can get your Discord account blocked by the API.\n');
     console.log('Logged in as ' + user.username + '#' + user.discriminator + '...\n');
 
     await deleteMessages(await fetchTargets());
 
     console.log('\nAll Channels/Guilds have been purged.');
-    console.log('Thanks for using ' + colors.green('Ivy') + '!\n');
+    console.log('Thanks for using ' + chalk.green('Ivy') + '!\n');
 }
 
 async function deleteMessages(targets: Array<Target>): Promise<void> {
     const specifiedTargetsCount: number = config.onlyIncludeTheseChannels.length + config.onlyIncludeTheseGuilds.length;
     if (specifiedTargetsCount > 0) {
         if (specifiedTargetsCount === 1) {
-            console.log('Specified ' +  colors.bold('1') + ' target.\n');
+            console.log('Specified ' +  chalk.bold('1') + ' target.\n');
         } else {
-            console.log('Specified ' +  colors.bold(String(specifiedTargetsCount)) + ' targets.\n');
+            console.log('Specified ' +  chalk.bold(String(specifiedTargetsCount)) + ' targets.\n');
         }
     } else {
         if (targets.length === 0) {
-            console.log(colors.yellow('No targets were found.\n'));
+            console.log(chalk.yellow('No targets were found.\n'));
             process.exit(0);
         } else if (targets.length === 1) {
-            console.log('Found ' +  colors.bold('1') + ' target. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+            console.log('Found ' +  chalk.bold('1') + ' target. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
         } else {
-            console.log('Found ' + colors.bold(String(targets.length)) + ' targets. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
+            console.log('Found ' + chalk.bold(String(targets.length)) + ' targets. (' + (config.channelsToExclude.length + config.guildsToExclude.length) + ' excluded)\n');
         }
     }
 
     for (const target of targets) {
         console.log('-------------------------------------------------------------------');
-        console.log('Fetching messages in "' + colors.blue(target.name) + '"... (this may take some time)');
+        console.log('Fetching messages in "' + chalk.blue(target.name) + '"... (this may take some time)');
         let messages: Array<any> = await fetchMessages(target);
 
         if (messages.length === 0) {
-            console.log(colors.yellow('No messages were found, moving on.'));
+            console.log(chalk.yellow('No messages were found, moving on.'));
             console.log('-------------------------------------------------------------------');
 
             completedTargets += 1;
@@ -94,13 +94,13 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         } else if (messages.length === 1) {
             console.log('Found 1 message.\n');
         } else {
-            console.log('Found ' + colors.bold(String(messages.length)) + ' messages.\n');
+            console.log('Found ' + chalk.bold(String(messages.length)) + ' messages.\n');
         }
 
-        console.log('Purging messages in "' + colors.blue(target.name) + '"...');
+        console.log('Purging messages in "' + chalk.blue(target.name) + '"...');
 
         const progressBar = new cliProgress.SingleBar({
-            format: colors.green('{bar}') + ' {percentage}% | ETA: {eta}s | Deleted: {value}/{total}',
+            format: chalk.green('{bar}') + ' {percentage}% | ETA: {eta}s | Deleted: {value}/{total}',
             barCompleteChar: '#',
             hideCursor: true
         });
@@ -137,7 +137,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
         }
 
-        console.log('\nSuccessful: ' + colors.bold(String(deletedMessages)) + ' | Failed: ' + colors.bold(String(failedMessages)));
+        console.log('\nSuccessful: ' + chalk.bold(String(deletedMessages)) + ' | Failed: ' + chalk.bold(String(failedMessages)));
         console.log('-------------------------------------------------------------------');
 
         completedTargets += 1;
@@ -232,7 +232,7 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
         );
 
         if (response.status !== 200) {
-            console.log(colors.red('Failed to fetch the channels.'));
+            console.log(chalk.red('Failed to fetch the channels.'));
             process.exit(1);
         } else {
             const channels: Array<any> = await response.json();
@@ -264,7 +264,7 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
         );
 
         if (response.status !== 200) {
-            console.log(colors.red('Failed to fetch the guilds.'));
+            console.log(chalk.red('Failed to fetch the guilds.'));
             process.exit(1);
         } else {
             const guilds: Array<any> = await response.json();
@@ -306,7 +306,7 @@ async function fetchAllTargets(): Promise<Array<Target>> {
         );
 
         if (response.status !== 200) {
-            console.log(colors.red('Failed to get the list of channels or guilds. Try again in a few seconds.'));
+            console.log(chalk.red('Failed to get the list of channels or guilds. Try again in a few seconds.'));
             process.exit(1);
         } else {
             const data: any = await response.json();
@@ -355,7 +355,7 @@ function logRemainingTargets(targetsAmount: number, targetType: string): void {
 function validateConfig(): void {
     const error = ConfigValidator.validate(config);
     if (error) {
-        console.log(colors.red(error));
+        console.log(chalk.red(error));
         process.exit(1);
     }
 }
