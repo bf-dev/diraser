@@ -6,7 +6,7 @@
 //
 
 import config from '../config.json';
-import { ConfigValidator } from './ConfigValidator';
+import { ConfigValidator } from './config-validator';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 

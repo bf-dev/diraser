@@ -4,4 +4,4 @@
 node_modules/
 package-lock.json
 index.js
-ConfigValidator.js
+config-validator.js

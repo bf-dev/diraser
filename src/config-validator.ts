@@ -1,5 +1,5 @@
 //
-//  ConfigValidator.ts
+//  config-validator.ts
 //  Ivy
 //
 //  Created by Alexandra (@Traurige)
