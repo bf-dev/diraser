@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     console.log('Donations are welcome: ' + chalk.underline('https://ko-fi.com/traurige'));
     console.log('-------------------------------------------------------\n');
     console.log(chalk.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
-    console.log(chalk.yellow('Warning:') + ' Unlikely, but using this can get your Discord account blocked by the API.\n');
+    console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.\n');
     console.log('Logged in as ' + user.username + '#' + user.discriminator + '...\n');
 
     await deleteMessages(await fetchTargets());
@@ -101,7 +101,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             console.log('Found ' + chalk.bold(String(messages.length)) + ' messages.\n');
         }
 
-        console.log('Purging messages in "' + chalk.blue(target.name) + '"...');
+        console.log('Purging messages in "' + chalk.blue(target.name) + '" now.');
 
         const progressBar = new cliProgress.SingleBar({
             format: chalk.green('{bar}') + ' {percentage}% | ETA: {eta}s | Deleted: {value}/{total}',
@@ -347,12 +347,12 @@ async function fetchAllTargets(): Promise<Array<Target>> {
 function logRemainingTargets(targetsAmount: number, targetType: string): void {
     if ((targetsAmount - completedTargets) === 1) {
         if (targetType === 'channel') {
-            console.log('\n1 Channel left to purge.\n');
+            console.log('\n' + chalk.bold('1') + ' Channel left to purge.\n');
         } else {
-            console.log('\n1 Guild left to purge.\n');
+            console.log('\n' + chalk.bold('1') + ' Guild left to purge.\n');
         }
     } else if ((targetsAmount - completedTargets) > 1) {
-        console.log('\n' + (targetsAmount - completedTargets) + ' Channels/Guilds left to purge.\n');
+        console.log('\n' + chalk.bold((targetsAmount - completedTargets)) + ' Channels/Guilds left to purge.\n');
     }
 }
 
