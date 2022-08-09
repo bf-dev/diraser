@@ -24,9 +24,9 @@ const headers: HeadersInit = {
 let user: any;
 let offset: number = 0;
 let deletedMessages: number = 0;
-let completedTargets: number = 0;
 let skippedMessages: number = 0;
 let failedMessages: number = 0;
+let completedTargets: number = 0;
 
 async function main(): Promise<void> {
     validateConfig();
@@ -89,6 +89,10 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
 
             completedTargets += 1;
             logRemainingTargets(targets.length, target.type);
+
+            offset = 0;
+            skippedMessages = 0;
+            failedMessages = 0;
 
             continue;
         } else if (messages.length === 1) {
