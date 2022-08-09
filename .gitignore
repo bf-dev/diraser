@@ -3,5 +3,5 @@
 .idea
 node_modules/
 package-lock.json
-index.js
-config-validator.js
+src/index.js
+src/config-validator.js
