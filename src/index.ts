@@ -81,6 +81,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
     for (const target of targets) {
         console.log('-------------------------------------------------------------------');
         console.log('Fetching messages in "' + chalk.blue(target.name) + '"... (this may take some time)');
+
         let messages: Array<any> = await fetchMessages(target);
 
         if (messages.length === 0) {
@@ -104,9 +105,10 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         console.log('Purging messages in "' + chalk.blue(target.name) + '" now.');
 
         const progressBar = new cliProgress.SingleBar({
-            format: chalk.green('{bar}') + ' {percentage}% | ETA: {eta}s | Deleted: {value}/{total}',
+            format: chalk.green('{bar}') + ' {percentage}% | ETA: {eta}s | Elapsed: {duration_formatted} | Deleted: {value}/{total}',
             barCompleteChar: '#',
-            hideCursor: true
+            hideCursor: true,
+            barsize: 25
         });
         progressBar.start(messages.length, 0);
 
