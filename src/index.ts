@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     console.log('-------------------------------------------------------\n');
     console.log(chalk.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
     console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.\n');
-    console.log('Logged in as ' + user.username + '#' + user.discriminator + '...\n');
+    console.log('Logged in as ' + chalk.italic(user.username + '#' + user.discriminator) + '.\n');
 
     await deleteMessages(await fetchTargets());
 
@@ -105,7 +105,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         console.log('Purging messages in "' + chalk.blue(target.name) + '" now.');
 
         const progressBar = new cliProgress.SingleBar({
-            format: chalk.green('{bar}') + ' {percentage}% | ETA: {eta}s | Elapsed: {duration_formatted} | Deleted: {value}/{total}',
+            format: chalk.green('{bar}') + ' ' + chalk.bold('{percentage}%') + ' | ETA: ' + chalk.bold('{eta}s') + ' | Elapsed: ' + chalk.bold('{duration_formatted}') + ' | Deleted: ' + chalk.bold('{value}/{total}'),
             barCompleteChar: '#',
             hideCursor: true,
             barsize: 25
@@ -143,8 +143,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
         }
 
-        console.log('\nSuccessful: ' + chalk.bold(String(deletedMessages)) + ' | Failed: ' + chalk.bold(String(failedMessages)));
-        console.log('-------------------------------------------------------------------');
+        console.log('\n-------------------------------------------------------------------');
 
         completedTargets += 1;
         logRemainingTargets(targets.length, target.type);
