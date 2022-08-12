@@ -16,6 +16,11 @@ interface Target {
     name: string;
 }
 
+interface MessageContainer {
+    total_results: number;
+    messages: Array<any>;
+}
+
 const API_ENDPOINT: string = 'https://discord.com/api/v10/';
 const headers: HeadersInit = {
     'Authorization': config.token
@@ -79,13 +84,14 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
     }
 
     for (const target of targets) {
-        console.log('-------------------------------------------------------------------');
-        console.log('Fetching messages in "' + chalk.blue(target.name) + '"... (this may take some time)');
+        const data: MessageContainer = await fetchMessages(target);
+        const totalResults: number = data.total_results;
+        let messages: Array<any> = data.messages;
 
-        let messages: Array<any> = await fetchMessages(target);
+        console.log('-------------------------------------------------------------------');
 
         if (messages.length === 0) {
-            console.log(chalk.yellow('No messages were found, moving on.'));
+            console.log(chalk.yellow('No messages were found in "' + chalk.blue(target.name) + '", moving on.'));
             console.log('-------------------------------------------------------------------');
 
             completedTargets += 1;
@@ -97,97 +103,27 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
 
             continue;
         } else if (messages.length === 1) {
-            console.log('Found 1 message.\n');
+            console.log('Found approximately 1 message in "' + chalk.blue(target.name) + '".\n');
         } else {
-            console.log('Found ' + chalk.bold(String(messages.length)) + ' messages.\n');
+            console.log('Found approximately ' + chalk.bold(totalResults) + ' messages in "' + chalk.blue(target.name) + '".\n');
         }
 
         console.log('Purging messages in "' + chalk.blue(target.name) + '" now.');
 
         const progressBar = new cliProgress.SingleBar({
-            format: chalk.green('{bar}') + ' ' + chalk.bold('{percentage}%') + ' | ETA: ' + chalk.bold('{eta}s') + ' | Elapsed: ' + chalk.bold('{duration_formatted}') + ' | Deleted: ' + chalk.bold('{value}/{total}'),
+            format: chalk.green('{bar}') + ' ' + chalk.bold('{percentage}%') + ' | Elapsed: ' + chalk.bold('{duration_formatted}') + ' | Deleted: ' + chalk.bold('{value}/{total}'),
             barCompleteChar: '#',
             hideCursor: true,
-            barsize: 25
         });
-        progressBar.start(messages.length, 0);
+        progressBar.start(totalResults, 0);
 
-        for (const message of messages) {
-            let DELETE_ENDPOINT: RequestInfo = API_ENDPOINT;
-            if (target.type === 'channel') {
-                DELETE_ENDPOINT += 'channels/' + target.id + '/messages/' + message.id;
-            } else {
-                DELETE_ENDPOINT += 'channels/' + message.channel_id + '/messages/' + message.id;
-            }
-
-            const response: Response = await fetch(
-                DELETE_ENDPOINT, {
-                    method: 'DELETE',
-                    headers: headers
-                }
-            );
-
-            if (response.status === 204) {
-                deletedMessages += 1;
-                progressBar.increment();
-            } else if (response.status === 429) {
-                messages.push(message); // add the current message again to try deleting it again later
-
-                const data: any = await response.json();
-                const delay: number = data.retry_after * 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
-            } else {
-                failedMessages += 1;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
-        }
-
-        console.log('\n-------------------------------------------------------------------');
-
-        completedTargets += 1;
-        logRemainingTargets(targets.length, target.type);
-
-        offset = 0;
-        skippedMessages = 0;
-        failedMessages = 0;
-    }
-}
-
-async function fetchMessages(target: Target): Promise<Array<any>> {
-    let validMessages: Array<any> = [];
-
-    while (true) {
-        let MESSAGES_ENDPOINT: RequestInfo = API_ENDPOINT;
-
-        if (target.type === 'channel') {
-            MESSAGES_ENDPOINT += 'channels/' + target.id + '/messages/search?author_id=' + user.id
-        } else {
-            MESSAGES_ENDPOINT += 'guilds/' + target.id + '/messages/search?author_id=' + user.id
-        }
-
-        MESSAGES_ENDPOINT += '&include_nsfw=' + config.includeNsfw;
-        MESSAGES_ENDPOINT += '&offset=' + offset;
-
-        const response: Response = await fetch(
-            MESSAGES_ENDPOINT, {
-                headers: headers
-            }
-        );
-
-        if (response.status === 200) {
-            const data: any = await response.json();
-            const messages: Array<any> = data.messages;
-
-            if (messages.length === 0) {
-                break;
-            }
-
+        while (messages.length > (skippedMessages + failedMessages)) {
             for (let message of messages) {
                 message = message[0];
 
                 // messages with the type 1-5 or > 21 are considered system messages and forbidden to be deleted
-                if ((message.type >= 1 && message.type <= 5) || message.type > 21) {
+                if (message.type === undefined || (message.type >= 1 && message.type <= 5) || message.type > 21) {
+                    skippedMessages += 1;
                     continue;
                 }
 
@@ -200,10 +136,79 @@ async function fetchMessages(target: Target): Promise<Array<any>> {
                     continue;
                 }
 
-                validMessages.push(message);
+                let DELETE_ENDPOINT: RequestInfo = API_ENDPOINT;
+                if (target.type === 'channel') {
+                    DELETE_ENDPOINT += 'channels/' + target.id + '/messages/' + message.id;
+                } else {
+                    DELETE_ENDPOINT += 'channels/' + message.channel_id + '/messages/' + message.id;
+                }
+
+                const response: Response = await fetch(
+                    DELETE_ENDPOINT, {
+                        method: 'DELETE',
+                        headers: headers
+                    }
+                );
+
+                if (response.status === 204) {
+                    deletedMessages += 1;
+                    progressBar.increment();
+                } else if (response.status === 429) {
+                    messages.push(message); // add the current message again to try deleting it again later
+
+                    const data: any = await response.json();
+                    const delay: number = data.retry_after * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    failedMessages += 1;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
             }
 
+            const data: MessageContainer = await fetchMessages(target);
+            messages = data.messages;
+        }
+
+        console.log('\nSuccessful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
+        console.log('-------------------------------------------------------------------');
+
+        completedTargets += 1;
+        logRemainingTargets(targets.length, target.type);
+
+        offset = 0;
+        skippedMessages = 0;
+        failedMessages = 0;
+    }
+}
+
+async function fetchMessages(target: Target): Promise<MessageContainer> {
+    let MESSAGES_ENDPOINT: RequestInfo = API_ENDPOINT;
+
+    if (target.type === 'channel') {
+        MESSAGES_ENDPOINT += 'channels/' + target.id + '/messages/search?author_id=' + user.id
+    } else {
+        MESSAGES_ENDPOINT += 'guilds/' + target.id + '/messages/search?author_id=' + user.id
+    }
+
+    MESSAGES_ENDPOINT += '&include_nsfw=' + config.includeNsfw;
+    MESSAGES_ENDPOINT += '&offset=' + offset;
+
+    let totalResults: number = 0;
+    let messages: Array<any> = [];
+    while (true) {
+        const response: Response = await fetch(
+            MESSAGES_ENDPOINT, {
+                headers: headers
+            }
+        );
+
+        if (response.status === 200) {
+            const data: any = await response.json();
+            messages = data.messages;
+            totalResults = data.total_results;
             offset += messages.length;
+            break;
         } else if (response.status === 202 || response.status === 429) {
             // 202 === channel/guild hasn't been indexed yet
             // 429 === rate limit exceeded
@@ -211,11 +216,9 @@ async function fetchMessages(target: Target): Promise<Array<any>> {
             const delay: number = data.retry_after * 1000;
             await new Promise(resolve => setTimeout(resolve, delay));
         }
-
-        await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
     }
 
-    return validMessages;
+    return {total_results: totalResults, messages: messages};
 }
 
 async function fetchTargets(): Promise<Array<Target>> {
