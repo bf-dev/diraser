@@ -125,7 +125,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         });
         progressBar.start(totalResults, 0);
 
-        while ((deletedMessages + skippedMessages + failedMessages) < (totalResults - 1)) {
+        do {
             for (const message of messages) {
                 // some messages are an array with one object, i don't know why that is yet
                 if (Array.isArray(message)) {
@@ -192,7 +192,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             } else {
                 offset += 1;
             }
-        }
+        } while ((deletedMessages + skippedMessages + failedMessages) < (totalResults - 1));
 
         console.log('\nSuccessful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
         console.log('-------------------------------------------------------------------');
