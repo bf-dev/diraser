@@ -66,4 +66,4 @@ node src/index.js
 2. Register a cron job, which executes the script
 
 ## License
-[MIT](https://github.com/Traurige/Ivy/blob/main/LICENSE)
+[GPLv3](https://github.com/Traurige/Ivy/blob/main/COPYING)

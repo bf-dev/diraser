@@ -23,6 +23,7 @@ interface MessageContainer {
 
 const API_ENDPOINT: string = 'https://discord.com/api/v10/';
 const headers: HeadersInit = {
+    'User-Agent' : 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0', // does a real user agent make it less sus?
     'Authorization': config.token
 };
 
@@ -36,16 +37,21 @@ let completedTargets: number = 0;
 async function main(): Promise<void> {
     validateConfig();
 
-    const response: Response = await fetch(
-        API_ENDPOINT + 'users/@me', {
-            headers: headers
-        }
-    );
+    try {
+        const response: Response = await fetch(
+            API_ENDPOINT + 'users/@me', {
+                headers: headers
+            }
+        );
 
-    if (response.status === 200) {
-        user = await response.json();
-    } else {
-        console.error(chalk.red('The token in your config seems to be invalid.'));
+        if (response.status === 200) {
+            user = await response.json();
+        } else {
+            console.error(chalk.red('The token in your config seems to be invalid.'));
+            process.exit(1);
+        }
+    } catch {
+        console.error('Failed to fetch the user.');
         process.exit(1);
     }
 
@@ -54,6 +60,7 @@ async function main(): Promise<void> {
     console.log('Source code: ' + chalk.underline('https://github.com/Traurige/Ivy'));
     console.log('Donations are welcome: ' + chalk.underline('https://ko-fi.com/traurige'));
     console.log('-------------------------------------------------------\n');
+    console.log(chalk.yellow('Recommended:') + " Don't interact with your Discord account during the process.");
     console.log(chalk.yellow('Recommended:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
     console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.\n');
     console.log('Logged in as ' + chalk.italic(user.username + '#' + user.discriminator) + '.\n');
@@ -98,6 +105,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             logRemainingTargets(targets.length, target.type);
 
             offset = 0;
+            deletedMessages = 0;
             skippedMessages = 0;
             failedMessages = 0;
 
@@ -110,19 +118,25 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
 
         console.log('Purging messages in "' + chalk.blue(target.name) + '" now.');
 
-        const progressBar = new cliProgress.SingleBar({
+        const progressBar: cliProgress.SingleBar = new cliProgress.SingleBar({
             format: chalk.green('{bar}') + ' ' + chalk.bold('{percentage}%') + ' | Elapsed: ' + chalk.bold('{duration_formatted}') + ' | Deleted: ' + chalk.bold('{value}/{total}'),
             barCompleteChar: '#',
             hideCursor: true,
         });
         progressBar.start(totalResults, 0);
 
-        while (messages.length > (skippedMessages + failedMessages)) {
-            for (let message of messages) {
-                message = message[0];
+        while ((deletedMessages + skippedMessages + failedMessages) < (totalResults - 1)) {
+            for (const message of messages) {
+                // some messages are an array with one object, i don't know why that is yet
+                if (Array.isArray(message)) {
+                    for (const _message of message) {
+                        messages.push(_message);
+                    }
+                    continue;
+                }
 
                 // messages with the type 1-5 or > 21 are considered system messages and forbidden to be deleted
-                if (message.type === undefined || (message.type >= 1 && message.type <= 5) || message.type > 21) {
+                if ((message.type >= 1 && message.type <= 5) || message.type > 21) {
                     skippedMessages += 1;
                     continue;
                 }
@@ -143,24 +157,28 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
                     DELETE_ENDPOINT += 'channels/' + message.channel_id + '/messages/' + message.id;
                 }
 
-                const response: Response = await fetch(
-                    DELETE_ENDPOINT, {
-                        method: 'DELETE',
-                        headers: headers
+                try {
+                    const response: Response = await fetch(
+                        DELETE_ENDPOINT, {
+                            method: 'DELETE',
+                            headers: headers
+                        }
+                    );
+
+                    if (response.status === 204) {
+                        deletedMessages += 1;
+                        progressBar.increment();
+                    } else if (response.status === 429) {
+                        messages.push(message); // add the current message again to try deleting it again later
+
+                        const data: any = await response.json();
+                        const delay: number = data.retry_after * 2000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        failedMessages += 1;
                     }
-                );
-
-                if (response.status === 204) {
-                    deletedMessages += 1;
-                    progressBar.increment();
-                } else if (response.status === 429) {
-                    messages.push(message); // add the current message again to try deleting it again later
-
-                    const data: any = await response.json();
-                    const delay: number = data.retry_after * 1000;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    failedMessages += 1;
+                } catch {
+                    messages.push(message);
                 }
 
                 await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (2000 - 500 + 1) + 500)));
@@ -168,6 +186,12 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
 
             const data: MessageContainer = await fetchMessages(target);
             messages = data.messages;
+
+            if (messages.length === 0) {
+                offset = 0;
+            } else {
+                offset += 1;
+            }
         }
 
         console.log('\nSuccessful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
@@ -177,6 +201,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         logRemainingTargets(targets.length, target.type);
 
         offset = 0;
+        deletedMessages = 0;
         skippedMessages = 0;
         failedMessages = 0;
     }
@@ -197,24 +222,27 @@ async function fetchMessages(target: Target): Promise<MessageContainer> {
     let totalResults: number = 0;
     let messages: Array<any> = [];
     while (true) {
-        const response: Response = await fetch(
-            MESSAGES_ENDPOINT, {
-                headers: headers
-            }
-        );
+        try {
+            const response: Response = await fetch(
+                MESSAGES_ENDPOINT, {
+                    headers: headers
+                }
+            );
 
-        if (response.status === 200) {
-            const data: any = await response.json();
-            messages = data.messages;
-            totalResults = data.total_results;
-            offset += messages.length;
-            break;
-        } else if (response.status === 202 || response.status === 429) {
-            // 202 === channel/guild hasn't been indexed yet
-            // 429 === rate limit exceeded
-            const data: any = await response.json();
-            const delay: number = data.retry_after * 1000;
-            await new Promise(resolve => setTimeout(resolve, delay));
+            if (response.status === 200) {
+                const data: any = await response.json();
+                messages = data.messages;
+                totalResults = data.total_results;
+                break;
+            } else if (response.status === 202 || response.status === 429) {
+                // 202 === channel/guild hasn't been indexed yet
+                // 429 === rate limit exceeded
+                const data: any = await response.json();
+                const delay: number = data.retry_after * 2000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        } catch {
+            console.log('Failed to get the messages. Retrying...');
         }
     }
 
@@ -233,61 +261,71 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
     let targets: Array<Target> = [];
 
     if (config.onlyIncludeTheseChannels.length > 0) {
-        const response: Response = await fetch(
-            API_ENDPOINT + 'users/@me/channels', {
-                headers: headers
-            }
-        );
+        try {
+            const response: Response = await fetch(
+                API_ENDPOINT + 'users/@me/channels', {
+                    headers: headers
+                }
+            );
 
-        if (response.status !== 200) {
-            console.log(chalk.red('Failed to fetch the channels.'));
-            process.exit(1);
-        } else {
-            const channels: Array<any> = await response.json();
-            for (const includedChannel of config.onlyIncludeTheseChannels) {
-                let name: string = '';
+            if (response.status !== 200) {
+                console.log(chalk.red('Failed to fetch the channels.'));
+                process.exit(1);
+            } else {
+                const channels: Array<any> = await response.json();
+                for (const includedChannel of config.onlyIncludeTheseChannels) {
+                    let name: string = '';
 
-                for (const channel of channels) {
-                    if (channel.id === includedChannel) {
-                        for (const recipient of channel.recipients) {
-                            name += recipient.username + '#' + recipient.discriminator + ', ';
-                        }
+                    for (const channel of channels) {
+                        if (channel.id === includedChannel) {
+                            for (const recipient of channel.recipients) {
+                                name += recipient.username + '#' + recipient.discriminator + ', ';
+                            }
 
-                        if (name.endsWith(', ')) {
-                            name = name.substring(0, name.length - 2);
+                            if (name.endsWith(', ')) {
+                                name = name.substring(0, name.length - 2);
+                            }
                         }
                     }
-                }
 
-                targets.push({type: 'channel', id: includedChannel, name: name});
+                    targets.push({type: 'channel', id: includedChannel, name: name});
+                }
             }
+        } catch {
+            console.log('Failed to fetch the channels.');
+            process.exit(1);
         }
     }
 
     if (config.onlyIncludeTheseGuilds.length > 0) {
-        const response: Response = await fetch(
-            API_ENDPOINT + 'users/@me/guilds', {
-                headers: headers
-            }
-        );
-
-        if (response.status !== 200) {
-            console.log(chalk.red('Failed to fetch the guilds.'));
-            process.exit(1);
-        } else {
-            const guilds: Array<any> = await response.json();
-
-            for (const includedGuild of config.onlyIncludeTheseGuilds) {
-                let name: string = '';
-
-                for (const guild of guilds) {
-                    if (guild.id === includedGuild) {
-                        name = guild.name;
-                    }
+        try {
+            const response: Response = await fetch(
+                API_ENDPOINT + 'users/@me/guilds', {
+                    headers: headers
                 }
+            );
 
-                targets.push({type: 'guild', id: includedGuild, name: name});
+            if (response.status !== 200) {
+                console.log(chalk.red('Failed to fetch the guilds.'));
+                process.exit(1);
+            } else {
+                const guilds: Array<any> = await response.json();
+
+                for (const includedGuild of config.onlyIncludeTheseGuilds) {
+                    let name: string = '';
+
+                    for (const guild of guilds) {
+                        if (guild.id === includedGuild) {
+                            name = guild.name;
+                        }
+                    }
+
+                    targets.push({type: 'guild', id: includedGuild, name: name});
+                }
             }
+        } catch {
+            console.log('Failed to fetch the guilds.');
+            process.exit(1);
         }
     }
 
@@ -307,41 +345,46 @@ async function fetchAllTargets(): Promise<Array<Target>> {
 
     // get all channel and guild ids
     for (const targetEndpoint of TARGET_ENDPOINTS) {
-        const response: Response = await fetch(
-            targetEndpoint, {
-                headers: headers
-            }
-        );
+        try {
+            const response: Response = await fetch(
+                targetEndpoint, {
+                    headers: headers
+                }
+            );
 
-        if (response.status !== 200) {
-            console.log(chalk.red('Failed to get the list of channels or guilds. Try again in a few seconds.'));
+            if (response.status !== 200) {
+                console.log(chalk.red('Failed to get the list of channels or guilds.'));
+                process.exit(1);
+            } else {
+                const data: any = await response.json();
+                const channelsToExclude: Array<string> = config.channelsToExclude;
+                const guildsToExclude: Array<string> = config.guildsToExclude;
+
+                for (const target of data) {
+                    // skip excluded channels and guilds
+                    if (channelsToExclude.includes(target.id) || guildsToExclude.includes(target.id)) {
+                        continue;
+                    }
+
+                    if (targetEndpoint.endsWith('channels')) {
+                        let name: string = '';
+                        for (const recipient of target.recipients) {
+                            name += recipient.username + '#' + recipient.discriminator + ', ';
+                        }
+
+                        if (name.endsWith(', ')) {
+                            name = name.substring(0, name.length - 2);
+                        }
+
+                        targets.push({type: 'channel', id: target.id, name: name});
+                    } else {
+                        targets.push({type: 'guild', id: target.id, name: target.name});
+                    }
+                }
+            }
+        } catch {
+            console.log('Failed to get the list of channels and guilds.');
             process.exit(1);
-        } else {
-            const data: any = await response.json();
-            const channelsToExclude: Array<string> = config.channelsToExclude;
-            const guildsToExclude: Array<string> = config.guildsToExclude;
-
-            for (const target of data) {
-                // skip excluded channels and guilds
-                if (channelsToExclude.includes(target.id) || guildsToExclude.includes(target.id)) {
-                    continue;
-                }
-
-                if (targetEndpoint.endsWith('channels')) {
-                    let name: string = '';
-                    for (const recipient of target.recipients) {
-                        name += recipient.username + '#' + recipient.discriminator + ', ';
-                    }
-
-                    if (name.endsWith(', ')) {
-                        name = name.substring(0, name.length - 2);
-                    }
-
-                    targets.push({type: 'channel', id: target.id, name: name});
-                } else {
-                    targets.push({type: 'guild', id: target.id, name: target.name});
-                }
-            }
         }
     }
 
