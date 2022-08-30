@@ -188,7 +188,8 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             }
         } while ((deletedMessages + skippedMessages + failedMessages) < (totalResults - 1));
 
-        console.log('\nSuccessful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
+        progressBar.stop();
+        console.log('Successful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
         console.log('-------------------------------------------------------------------');
 
         prepareForNextTarget(targets);
@@ -379,18 +380,6 @@ async function fetchAllTargets(): Promise<Array<Target>> {
     return targets;
 }
 
-function logRemainingTargets(targetsAmount: number, targetType: string): void {
-    if ((targetsAmount - completedTargets) === 1) {
-        if (targetType === 'channel') {
-            console.log('\n' + chalk.bold('1') + ' Channel left to purge.\n');
-        } else {
-            console.log('\n' + chalk.bold('1') + ' Guild left to purge.\n');
-        }
-    } else if ((targetsAmount - completedTargets) > 1) {
-        console.log('\n' + chalk.bold((targetsAmount - completedTargets)) + ' Channels/Guilds left to purge.\n');
-    }
-}
-
 function prepareForNextTarget(targets: Array<Target>): void {
     completedTargets += 1;
     if (!targets[completedTargets]) {
@@ -403,6 +392,18 @@ function prepareForNextTarget(targets: Array<Target>): void {
     deletedMessages = 0;
     skippedMessages = 0;
     failedMessages = 0;
+}
+
+function logRemainingTargets(targetsAmount: number, targetType: string): void {
+    if ((targetsAmount - completedTargets) === 1) {
+        if (targetType === 'channel') {
+            console.log('\n' + chalk.bold('1') + ' Channel left to purge.\n');
+        } else {
+            console.log('\n' + chalk.bold('1') + ' Guild left to purge.\n');
+        }
+    } else if ((targetsAmount - completedTargets) > 1) {
+        console.log('\n' + chalk.bold((targetsAmount - completedTargets)) + ' Channels/Guilds left to purge.\n');
+    }
 }
 
 function validateConfig(): void {
