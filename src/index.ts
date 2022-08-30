@@ -101,13 +101,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
             console.log(chalk.yellow('No messages were found in "' + chalk.blue(target.name) + '", moving on.'));
             console.log('-------------------------------------------------------------------');
 
-            completedTargets += 1;
-            logRemainingTargets(targets.length, target.type);
-
-            offset = 0;
-            deletedMessages = 0;
-            skippedMessages = 0;
-            failedMessages = 0;
+            prepareForNextTarget(targets);
 
             continue;
         } else if (messages.length === 1) {
@@ -197,13 +191,7 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
         console.log('\nSuccessful: ' + chalk.bold(deletedMessages) + ' | Skipped: ' + chalk.bold(skippedMessages) + ' | Failed: ' + chalk.bold(failedMessages));
         console.log('-------------------------------------------------------------------');
 
-        completedTargets += 1;
-        logRemainingTargets(targets.length, target.type);
-
-        offset = 0;
-        deletedMessages = 0;
-        skippedMessages = 0;
-        failedMessages = 0;
+        prepareForNextTarget(targets);
     }
 }
 
@@ -401,6 +389,20 @@ function logRemainingTargets(targetsAmount: number, targetType: string): void {
     } else if ((targetsAmount - completedTargets) > 1) {
         console.log('\n' + chalk.bold((targetsAmount - completedTargets)) + ' Channels/Guilds left to purge.\n');
     }
+}
+
+function prepareForNextTarget(targets: Array<Target>): void {
+    completedTargets += 1;
+    if (!targets[completedTargets]) {
+        return;
+    }
+
+    logRemainingTargets(targets.length, targets[completedTargets].type);
+
+    offset = 0;
+    deletedMessages = 0;
+    skippedMessages = 0;
+    failedMessages = 0;
 }
 
 function validateConfig(): void {
