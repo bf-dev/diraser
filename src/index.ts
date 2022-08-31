@@ -254,7 +254,7 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
         for (const includedChannel of config.onlyIncludeTheseChannels) {
             let name: string = '';
 
-            const channels: Array<any> = await getChannels();
+            const channels: Array<any> = await fetchChannels();
             let channelIds: Array<string> = [];
 
             for (const channel of channels) {
@@ -275,9 +275,9 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
                     }
                 }
             } else {
-                const guilds = await getGuilds();
+                const guilds = await fetchGuilds();
                 for (const guild of guilds) {
-                    const guildChannels = await getGuildChannels(guild.id);
+                    const guildChannels = await fetchGuildChannels(guild.id);
                     for (const guildChannel of guildChannels) {
                         if (guildChannel.id === includedChannel) {
                             name = guildChannel.name;
@@ -295,7 +295,7 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
     }
 
     if (config.onlyIncludeTheseGuilds.length > 0) {
-        const guilds: Array<any> = await getGuilds();
+        const guilds: Array<any> = await fetchGuilds();
         for (const includedGuild of config.onlyIncludeTheseGuilds) {
             let name: string = '';
 
@@ -315,7 +315,7 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
 async function fetchAllTargets(): Promise<Array<Target>> {
     let targets: Array<Target> = [];
 
-    const channels: Array<any> = await getChannels();
+    const channels: Array<any> = await fetchChannels();
     for (const channel of channels) {
         let name: string = '';
         for (const recipient of channel.recipients) {
@@ -329,7 +329,7 @@ async function fetchAllTargets(): Promise<Array<Target>> {
         targets.push({type: 'channel', id: channel.id, name: name});
     }
 
-    const guilds: Array<any> = await getGuilds();
+    const guilds: Array<any> = await fetchGuilds();
     for (const guild of guilds) {
         targets.push({type: 'guild', id: guild.id, name: guild.name});
     }
@@ -337,7 +337,7 @@ async function fetchAllTargets(): Promise<Array<Target>> {
     return targets;
 }
 
-async function getChannels(): Promise<Array<any>> {
+async function fetchChannels(): Promise<Array<any>> {
     while (true) {
         try {
             const response: Response = await fetch(
@@ -362,7 +362,7 @@ async function getChannels(): Promise<Array<any>> {
     }
 }
 
-async function getGuilds(): Promise<Array<any>> {
+async function fetchGuilds(): Promise<Array<any>> {
     while (true) {
         try {
             const response: Response = await fetch(
@@ -387,7 +387,7 @@ async function getGuilds(): Promise<Array<any>> {
     }
 }
 
-async function getGuildChannels(guildId: string): Promise<Array<any>> {
+async function fetchGuildChannels(guildId: string): Promise<Array<any>> {
     while (true) {
         try {
             const response: Response = await fetch(
