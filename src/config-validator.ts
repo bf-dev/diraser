@@ -106,5 +106,13 @@ export class ConfigValidator {
                 return "The deleteMessagesWithAttachments key's value must be either true or false.";
             }
         }
+
+        if (config.excludeMessagesBeforeDate === undefined) {
+            return 'The excludeMessagesBeforeDate key is missing in the config.';
+        } else {
+            if (typeof config.excludeMessagesBeforeDate !== 'string') {
+                return "The excludeMessagesBeforeDate key's value must be a string.";
+            }
+        }
     }
 }
