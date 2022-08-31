@@ -358,7 +358,6 @@ async function getChannels(): Promise<Array<any>> {
             }
         } catch {
             console.log('Failed to fetch the channels. Retrying...');
-            process.exit(1);
         }
     }
 }
@@ -384,7 +383,6 @@ async function getGuilds(): Promise<Array<any>> {
             }
         } catch {
             console.log('Failed to fetch the guilds. Retrying...');
-            process.exit(1);
         }
     }
 }
@@ -410,7 +408,6 @@ async function getGuildChannels(guildId: string): Promise<Array<any>> {
             }
         } catch {
             console.log('Failed to fetch the guild channels. Retrying...');
-            process.exit(1);
         }
     }
 }
