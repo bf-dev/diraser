@@ -250,71 +250,38 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
     let targets: Array<Target> = [];
 
     if (config.onlyIncludeTheseChannels.length > 0) {
-        try {
-            const response: Response = await fetch(
-                API_ENDPOINT + 'users/@me/channels', {
-                    headers: headers
-                }
-            );
+        const channels: Array<any> = await getChannels();
+        for (const includedChannel of config.onlyIncludeTheseChannels) {
+            let name: string = '';
 
-            if (response.status !== 200) {
-                console.log(chalk.red('Failed to fetch the channels.'));
-                process.exit(1);
-            } else {
-                const channels: Array<any> = await response.json();
-                for (const includedChannel of config.onlyIncludeTheseChannels) {
-                    let name: string = '';
-
-                    for (const channel of channels) {
-                        if (channel.id === includedChannel) {
-                            for (const recipient of channel.recipients) {
-                                name += recipient.username + '#' + recipient.discriminator + ', ';
-                            }
-
-                            if (name.endsWith(', ')) {
-                                name = name.substring(0, name.length - 2);
-                            }
-                        }
+            for (const channel of channels) {
+                if (channel.id === includedChannel) {
+                    for (const recipient of channel.recipients) {
+                        name += recipient.username + '#' + recipient.discriminator + ', ';
                     }
 
-                    targets.push({type: 'channel', id: includedChannel, name: name});
+                    if (name.endsWith(', ')) {
+                        name = name.substring(0, name.length - 2);
+                    }
                 }
             }
-        } catch {
-            console.log('Failed to fetch the channels.');
-            process.exit(1);
+
+            targets.push({type: 'channel', id: includedChannel, name: name});
         }
     }
 
     if (config.onlyIncludeTheseGuilds.length > 0) {
-        try {
-            const response: Response = await fetch(
-                API_ENDPOINT + 'users/@me/guilds', {
-                    headers: headers
-                }
-            );
+        const guilds: Array<any> = await getGuilds();
+        for (const includedGuild of config.onlyIncludeTheseGuilds) {
+            let name: string = '';
 
-            if (response.status !== 200) {
-                console.log(chalk.red('Failed to fetch the guilds.'));
-                process.exit(1);
-            } else {
-                const guilds: Array<any> = await response.json();
-
-                for (const includedGuild of config.onlyIncludeTheseGuilds) {
-                    let name: string = '';
-
-                    for (const guild of guilds) {
-                        if (guild.id === includedGuild) {
-                            name = guild.name;
-                        }
-                    }
-
-                    targets.push({type: 'guild', id: includedGuild, name: name});
+            for (const guild of guilds) {
+                if (guild.id === includedGuild) {
+                    name = guild.name;
                 }
             }
-        } catch {
-            console.log('Failed to fetch the guilds.');
-            process.exit(1);
+
+            targets.push({type: 'guild', id: includedGuild, name: name});
         }
     }
 
@@ -324,60 +291,78 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
 async function fetchAllTargets(): Promise<Array<Target>> {
     let targets: Array<Target> = [];
 
-    let TARGET_ENDPOINTS: Array<string> = [];
-    if (config.purgeChannels) {
-        TARGET_ENDPOINTS.push(API_ENDPOINT + 'users/@me/channels');
-    }
-    if (config.purgeGuilds) {
-        TARGET_ENDPOINTS.push(API_ENDPOINT + 'users/@me/guilds');
+    const channels: Array<any> = await getChannels();
+    for (const channel of channels) {
+        let name: string = '';
+        for (const recipient of channel.recipients) {
+            name += recipient.username + '#' + recipient.discriminator + ', ';
+        }
+
+        if (name.endsWith(', ')) {
+            name = name.substring(0, name.length - 2);
+        }
+
+        targets.push({type: 'channel', id: channel.id, name: name});
     }
 
-    // get all channel and guild ids
-    for (const targetEndpoint of TARGET_ENDPOINTS) {
+    const guilds: Array<any> = await getGuilds();
+    for (const guild of guilds) {
+        targets.push({type: 'guild', id: guild.id, name: guild.name});
+    }
+
+    return targets;
+}
+
+async function getChannels(): Promise<Array<any>> {
+    while (true) {
         try {
             const response: Response = await fetch(
-                targetEndpoint, {
+                API_ENDPOINT + 'users/@me/channels', {
                     headers: headers
                 }
             );
 
-            if (response.status !== 200) {
-                console.log(chalk.red('Failed to get the list of channels or guilds.'));
-                process.exit(1);
-            } else {
+            if (response.status === 200) {
+                return await response.json();
+            } else if (response.status === 429) {
                 const data: any = await response.json();
-                const channelsToExclude: Array<string> = config.channelsToExclude;
-                const guildsToExclude: Array<string> = config.guildsToExclude;
-
-                for (const target of data) {
-                    // skip excluded channels and guilds
-                    if (channelsToExclude.includes(target.id) || guildsToExclude.includes(target.id)) {
-                        continue;
-                    }
-
-                    if (targetEndpoint.endsWith('channels')) {
-                        let name: string = '';
-                        for (const recipient of target.recipients) {
-                            name += recipient.username + '#' + recipient.discriminator + ', ';
-                        }
-
-                        if (name.endsWith(', ')) {
-                            name = name.substring(0, name.length - 2);
-                        }
-
-                        targets.push({type: 'channel', id: target.id, name: name});
-                    } else {
-                        targets.push({type: 'guild', id: target.id, name: target.name});
-                    }
-                }
+                const delay: number = data.retry_after * 2000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.log(chalk.red('Failed to get the channels.'));
+                process.exit(1);
             }
         } catch {
-            console.log('Failed to get the list of channels and guilds.');
+            console.log('Failed to fetch the channels. Retrying...');
             process.exit(1);
         }
     }
+}
 
-    return targets;
+async function getGuilds(): Promise<Array<any>> {
+    while (true) {
+        try {
+            const response: Response = await fetch(
+                API_ENDPOINT + 'users/@me/guilds', {
+                    headers: headers
+                }
+            );
+
+            if (response.status === 200) {
+                return await response.json();
+            } else if (response.status === 429) {
+                const data: any = await response.json();
+                const delay: number = data.retry_after * 2000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.log(chalk.red('Failed to get the guilds.'));
+                process.exit(1);
+            }
+        } catch {
+            console.log('Failed to fetch the guilds. Retrying...');
+            process.exit(1);
+        }
+    }
 }
 
 function prepareForNextTarget(targets: Array<Target>): void {
