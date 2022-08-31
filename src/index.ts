@@ -65,6 +65,7 @@ async function main(): Promise<void> {
     console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.\n');
     console.log('Logged in as ' + chalk.italic(user.username + '#' + user.discriminator) + '.\n');
 
+    console.log('Fetching targets...');
     await deleteMessages(await fetchTargets());
 
     console.log('\nAll Channels/Guilds have been purged.');
@@ -250,18 +251,41 @@ async function fetchTargetsForConfiguration(): Promise<Array<Target>> {
     let targets: Array<Target> = [];
 
     if (config.onlyIncludeTheseChannels.length > 0) {
-        const channels: Array<any> = await getChannels();
         for (const includedChannel of config.onlyIncludeTheseChannels) {
             let name: string = '';
 
-            for (const channel of channels) {
-                if (channel.id === includedChannel) {
-                    for (const recipient of channel.recipients) {
-                        name += recipient.username + '#' + recipient.discriminator + ', ';
-                    }
+            const channels: Array<any> = await getChannels();
+            let channelIds: Array<string> = [];
 
-                    if (name.endsWith(', ')) {
-                        name = name.substring(0, name.length - 2);
+            for (const channel of channels) {
+                channelIds.push(channel.id);
+            }
+
+            // if channelIds contains the id, then it's a direct message, else it's a channel in a guild
+            if (channelIds.includes(includedChannel)) {
+                for (const channel of channels) {
+                    if (channel.id === includedChannel) {
+                        for (const recipient of channel.recipients) {
+                            name += recipient.username + '#' + recipient.discriminator + ', ';
+                        }
+
+                        if (name.endsWith(', ')) {
+                            name = name.substring(0, name.length - 2);
+                        }
+                    }
+                }
+            } else {
+                const guilds = await getGuilds();
+                for (const guild of guilds) {
+                    const guildChannels = await getGuildChannels(guild.id);
+                    for (const guildChannel of guildChannels) {
+                        if (guildChannel.id === includedChannel) {
+                            name = guildChannel.name;
+                            break;
+                        }
+                    }
+                    if (name !== '') {
+                        break;
                     }
                 }
             }
@@ -329,7 +353,7 @@ async function getChannels(): Promise<Array<any>> {
                 const delay: number = data.retry_after * 2000;
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
-                console.log(chalk.red('Failed to get the channels.'));
+                console.log(chalk.red('Failed to fetch the channels.'));
                 process.exit(1);
             }
         } catch {
@@ -355,11 +379,37 @@ async function getGuilds(): Promise<Array<any>> {
                 const delay: number = data.retry_after * 2000;
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
-                console.log(chalk.red('Failed to get the guilds.'));
+                console.log(chalk.red('Failed to fetch the guilds.'));
                 process.exit(1);
             }
         } catch {
             console.log('Failed to fetch the guilds. Retrying...');
+            process.exit(1);
+        }
+    }
+}
+
+async function getGuildChannels(guildId: string): Promise<Array<any>> {
+    while (true) {
+        try {
+            const response: Response = await fetch(
+                API_ENDPOINT + 'guilds/' + guildId + '/channels', {
+                    headers: headers
+                }
+            );
+
+            if (response.status === 200) {
+                return await response.json();
+            } else if (response.status === 429) {
+                const data: any = await response.json();
+                const delay: number = data.retry_after * 2000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.log(chalk.red('Failed to fetch the guild channels.'));
+                process.exit(1);
+            }
+        } catch {
+            console.log('Failed to fetch the guild channels. Retrying...');
             process.exit(1);
         }
     }
