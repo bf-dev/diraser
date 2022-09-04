@@ -15,6 +15,14 @@ export class ConfigValidator {
             }
         }
 
+        if (config.purgeGuilds === undefined) {
+            return 'The purgeGuilds key is missing in the config.';
+        } else {
+            if (typeof config.purgeGuilds !== 'boolean') {
+                return "The purgeGuilds key's value must be either true or false.";
+            }
+        }
+
         if (config.purgeChannels === undefined) {
             return 'The purgeChannels key is missing in the config.';
         } else {
@@ -23,11 +31,32 @@ export class ConfigValidator {
             }
         }
 
-        if (config.purgeGuilds === undefined) {
-            return 'The purgeGuilds key is missing in the config.';
+        if (config.purgeThreads === undefined) {
+            return 'The purgeThreads key is missing in the config.';
         } else {
-            if (typeof config.purgeGuilds !== 'boolean') {
-                return "The purgeGuilds key's value must be either true or false.";
+            if (typeof config.purgeThreads !== 'boolean') {
+                return "The purgeThreads key's value must be either true or false.";
+            }
+        }
+
+        if (config.purgeDirectMessages === undefined) {
+            return 'The purgeDirectMessages key is missing in the config.';
+        } else {
+            if (typeof config.purgeDirectMessages !== 'boolean') {
+                return "The purgeDirectMessages key's value must be either true or false.";
+            }
+        }
+
+        if (config.guildsToExclude === undefined) {
+            return 'The guildsToExclude key is missing in the config.';
+        } else {
+            if (!Array.isArray(config.guildsToExclude)) {
+                return "The guildsToExclude key's value must be an array of strings.";
+            }
+            for (const id of config.guildsToExclude) {
+                if (typeof id !== 'string') {
+                    return "The guildsToExclude key's value must be an array of strings.";
+                }
             }
         }
 
@@ -44,15 +73,41 @@ export class ConfigValidator {
             }
         }
 
-        if (config.guildsToExclude === undefined) {
-            return 'The channelsAndGuildsToExclude key is missing in the config.';
+        if (config.threadsToExclude === undefined) {
+            return 'The threadsToExclude key is missing in the config.';
         } else {
-            if (!Array.isArray(config.guildsToExclude)) {
-                return "The guildsToExclude key's value must be an array of strings.";
+            if (!Array.isArray(config.threadsToExclude)) {
+                return "The threadsToExclude key's value must be an array of strings.";
             }
-            for (const id of config.guildsToExclude) {
+            for (const id of config.threadsToExclude) {
                 if (typeof id !== 'string') {
-                    return "The guildsToExclude key's value must be an array of strings.";
+                    return "The threadsToExclude key's value must be an array of strings.";
+                }
+            }
+        }
+
+        if (config.directMessagesToExclude === undefined) {
+            return 'The directMessagesToExclude key is missing in the config.';
+        } else {
+            if (!Array.isArray(config.directMessagesToExclude)) {
+                return "The directMessagesToExclude key's value must be an array of strings.";
+            }
+            for (const id of config.directMessagesToExclude) {
+                if (typeof id !== 'string') {
+                    return "The directMessagesToExclude key's value must be an array of strings.";
+                }
+            }
+        }
+
+        if (config.onlyIncludeTheseGuilds === undefined) {
+            return 'The onlyIncludeTheseGuilds key is missing in the config.';
+        } else {
+            if (!Array.isArray(config.onlyIncludeTheseGuilds)) {
+                return "The onlyIncludeTheseGuilds key's value must be an array of strings.";
+            }
+            for (const id of config.onlyIncludeTheseGuilds) {
+                if (typeof id !== 'string') {
+                    return "The onlyIncludeTheseGuilds key's value must be an array of strings.";
                 }
             }
         }
@@ -70,15 +125,28 @@ export class ConfigValidator {
             }
         }
 
-        if (config.onlyIncludeTheseGuilds === undefined) {
-            return 'The onlyIncludeTheseGuilds key is missing in the config.';
+        if (config.onlyIncludeTheseThreads === undefined) {
+            return "The onlyIncludeTheseThreads key is missing in the config.";
         } else {
-            if (!Array.isArray(config.onlyIncludeTheseGuilds)) {
-                return "The onlyIncludeTheseGuilds key's value must be an array of strings.";
+            if (!Array.isArray(config.onlyIncludeTheseThreads)) {
+                return "The onlyIncludeTheseThreads key's value must be an array of strings.";
             }
-            for (const id of config.onlyIncludeTheseGuilds) {
+            for (const id of config.onlyIncludeTheseThreads) {
                 if (typeof id !== 'string') {
-                    return "The onlyIncludeTheseGuilds key's value must be an array of strings.";
+                    return "The onlyIncludeTheseThreads key's value must be an array of strings.";
+                }
+            }
+        }
+
+        if (config.onlyIncludeTheseDirectMessages === undefined) {
+            return 'The onlyIncludeTheseDirectMessages key is missing in the config.';
+        } else {
+            if (!Array.isArray(config.onlyIncludeTheseDirectMessages)) {
+                return "The onlyIncludeTheseDirectMessages key's value must be an array of strings.";
+            }
+            for (const id of config.onlyIncludeTheseDirectMessages) {
+                if (typeof id !== 'string') {
+                    return "The onlyIncludeTheseDirectMessages key's value must be an array of strings.";
                 }
             }
         }

@@ -1,7 +1,7 @@
 {
     "name": "ivy",
     "description": "Bulk delete your Discord messages from the cli manually or automated",
-    "version": "2.0.5",
+    "version": "3.0",
     "homepage": "https://traurige.dev",
     "bugs": "https://github.com/Traurige/Ivy/issues/new/choose",
     "license": "GPLv3",
