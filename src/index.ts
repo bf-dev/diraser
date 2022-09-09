@@ -67,8 +67,8 @@ async function main(): Promise<void> {
     console.log('Donations are welcome: ' + chalk.underline('https://ko-fi.com/traurige'));
     console.log('-------------------------------------------------------\n');
     console.log(chalk.yellow('Warning:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
-    console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.\n');
-    console.log(chalk.yellow('Recommended:') + " Don't interact with your Discord account during the process.");
+    console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.');
+    console.log(chalk.yellow('Recommended:') + " Don't interact with your Discord account during the process.\n");
     console.log('Logged in as ' + chalk.italic(user.username + '#' + user.discriminator) + '.\n');
 
     console.log('Fetching targets...');

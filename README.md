@@ -67,7 +67,7 @@ alert((webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.
 ```
 ### Guild
 1. Right-click a guild and click `Copy ID`
-## Channel, Thread And Direct Message
+### Channel, Thread And Direct Message
 1. Copy the link to a message in the channel, thread or direct message and paste it somewhere
 2. Copy the second array of numbers
 
