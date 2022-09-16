@@ -69,19 +69,16 @@ async function main(): Promise<void> {
     console.log(chalk.yellow('Warning:') + ' Use a VPN or VPS to avoid getting your IP blocked by Cloudflare.');
     console.log(chalk.yellow('Warning:') + ' Using this can get your Discord account blocked by the API.');
     console.log(chalk.yellow('Recommended:') + " Don't interact with your Discord account during the process.\n");
-    console.log('Logged in as ' + chalk.italic(user.username + '#' + user.discriminator) + '.\n');
+    console.log('Logged in as ' + chalk.italic.magenta(user.username + '#' + user.discriminator) + '.\n');
 
     console.log('Fetching targets...');
-    await deleteMessages(await fetchTargets());
+    const targets: Array<Target> = await fetchTargets();
 
-    console.log('\nEverything has been purged.');
-    console.log('Thanks for using ' + chalk.green('Ivy') + '!\n');
-}
-
-async function deleteMessages(targets: Array<Target>): Promise<void> {
-    const specifiedTargetsCount: number = config.onlyIncludeTheseChannels.length + config.onlyIncludeTheseThreads.length + config.onlyIncludeTheseDirectMessages.length;
-
-    if (specifiedTargetsCount > 0) {
+    if (config.onlyIncludeTheseGuilds.length +
+        config.onlyIncludeTheseThreads.length +
+        config.onlyIncludeTheseChannels.length +
+        config.onlyIncludeTheseDirectMessages.length > 0
+    ) {
         console.log('Filtering configured targets...\n');
     } else {
         console.log('Using all targets.\n');
@@ -90,12 +87,33 @@ async function deleteMessages(targets: Array<Target>): Promise<void> {
     if (targets.length === 0) {
         console.log(chalk.yellow('No targets were found.\n'));
         process.exit(0);
-    } else if (targets.length === 1) {
-        console.log('Found ' +  chalk.bold('1') + ' target.\n');
     } else {
-        console.log('Found ' + chalk.bold(String(targets.length)) + ' targets.\n');
+        const threadTargets: Array<Target> = targets.filter(target => target.type === 'thread');
+        const channelTargets: Array<Target> = targets.filter(target => target.type === 'channel');
+        const directMessageTargets: Array<Target> = targets.filter(target => target.type === 'directMessage');
+
+        console.log(chalk.bold('Found the following targets:'));
+        for (const target of threadTargets) {
+            console.log('Thread: "' + chalk.blue(target.name) + '" from "' + chalk.blue(target.guildName) + '".');
+        }
+        for (const target of channelTargets) {
+            console.log('Channel: "' + chalk.blue(target.name) + '" from "' + chalk.blue(target.guildName) + '".');
+        }
+        for (const target of directMessageTargets) {
+            console.log('Direct Message: "' + chalk.blue(target.name) + '".');
+        }
     }
 
+    console.log('\nStarting to purge in ' + chalk.bold('5') + ' seconds.\n');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    await deleteMessages(targets);
+
+    console.log('\nEverything has been purged.');
+    console.log('Thanks for using ' + chalk.green('Ivy') + '!\n');
+}
+
+async function deleteMessages(targets: Array<Target>): Promise<void> {
     for (const target of targets) {
         const data: DataContainer = await fetchData(target);
         const totalResults: number = data.total_results;
