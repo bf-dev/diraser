@@ -67,9 +67,12 @@ alert((webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.
 ```
 ### Guild
 1. Right-click a guild and click `Copy ID`
-### Channel, Thread And Direct Message
-1. Copy the link to a message in the channel, thread or direct message and paste it somewhere
+### Channel, Thread
+1. Copy the link to a message in the channel or thread and paste it somewhere
 2. Copy the second array of numbers
+### Direct Message
+1. Copy the link to a message in the direct message and paste it somewhere
+2. Copy the first array of numbers
 
 ## Automating Ivy
 1. Create a shell script that executes `node src/index.js` inside the `Ivy` folder
