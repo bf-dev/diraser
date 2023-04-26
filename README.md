@@ -1,6 +1,14 @@
 # Ivy
 Bulk delete your Discord messages from the cli manually or automated
 
+### Features:
+- Direct messages ✅
+- Server text channels ✅
+- Server threads ✅
+- Server voice-text channels ❌
+
+Additionally Ivy features a lot of options to configure.
+
 ## Preview
 <img src="Preview.png" alt="Ivy preview" />
 
@@ -65,11 +73,14 @@ Bulk delete your Discord messages from the cli manually or automated
 ```JavaScript
 alert((webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken());
 ```
+
 ### Guild
 1. Right-click a guild and click `Copy ID`
+
 ### Channel, Thread
 1. Copy the link to a message in the channel or thread and paste it somewhere
 2. Copy the second array of numbers
+
 ### Direct Message
 1. Copy the link to a message in the direct message and paste it somewhere
 2. Copy the first array of numbers
